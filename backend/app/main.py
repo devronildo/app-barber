@@ -27,7 +27,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,  # só o domínio do frontend
     allow_credentials=False,  # o token vai no cabeçalho Authorization, não em cookie
-    allow_methods=["GET", "POST", "PUT"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
 

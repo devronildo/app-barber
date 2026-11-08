@@ -179,3 +179,20 @@ def test_produto_com_historico_e_arquivado_e_some_do_pdv(client, dados_base):
     venda = client.post("/vendas", headers=h, json={"itens": [{"produto_id": p["id"], "quantidade": 1}], "forma_pagamento": "pix"})
     assert venda.status_code == 400 and "arquivado" in venda.json()["detail"]
     assert client.delete(f"/produtos/{p['id']}", headers=h).status_code == 404
+
+
+def test_barbeiro_consulta_o_proprio_cadastro(client, dados_base):
+    h, _ = login(client, "rafael@example.com")
+    r = client.get("/barbeiros/eu", headers=h)
+    assert r.status_code == 200 and r.json()["id"] == dados_base["barbeiro_id"]
+    h_cli, _ = login(client, "a@example.com")
+    assert client.get("/barbeiros/eu", headers=h_cli).status_code == 403
+
+
+def test_cors_libera_delete_para_o_frontend(client, db):
+    """Sem DELETE no CORS, o navegador bloqueia a exclusão antes de chegar na API."""
+    r = client.options("/produtos/1", headers={
+        "Origin": "http://localhost:5173", "Access-Control-Request-Method": "DELETE",
+    })
+    assert r.status_code == 200
+    assert "DELETE" in r.headers["access-control-allow-methods"]
