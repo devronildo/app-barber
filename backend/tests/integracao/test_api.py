@@ -365,3 +365,27 @@ def test_trocar_senha_exige_senha_atual(client, dados_base):
 def test_cliente_nao_gera_senha_temporaria(client, dados_base):
     h, _ = login(client, "a@example.com")
     assert client.post(f"/barbeiros/{dados_base['barbeiro_id']}/senha-temporaria", headers=h).status_code == 403
+
+
+# ---------- Tratamento de falhas ----------
+
+def test_cadastro_simultaneo_com_mesmo_email_responde_409_sem_detalhes(client, dados_base, monkeypatch):
+    """Simula duas requisições que passam juntas pela checagem de e-mail: a
+    segunda só é barrada pelo banco (IntegrityError) e precisa virar 409."""
+    from app.routers import auth as rotas_auth
+
+    original = rotas_auth.select
+
+    def select_que_nao_acha(*colunas):
+        # Só a checagem de e-mail duplicado do cadastro "não encontra" nada.
+        if colunas and getattr(colunas[0], "key", None) == "id":
+            return original(rotas_auth.Usuario.id).where(rotas_auth.Usuario.id == -1)
+        return original(*colunas)
+
+    monkeypatch.setattr(rotas_auth, "select", select_que_nao_acha)
+    r = client.post("/auth/cadastro", json={
+        "nome": "Outro Cliente", "email": "a@example.com", "telefone": "11987654321", "senha": "Pente#Fino2026",
+    })
+    assert r.status_code == 409
+    assert "já existe" in r.json()["detail"]
+    assert "usuarios" not in r.text.lower() and "unique" not in r.text.lower()

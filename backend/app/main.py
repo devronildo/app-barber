@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from .config import settings
 from .routers import agendamentos, auth, barbeiros, dashboard, produtos, servicos, vendas
@@ -95,6 +96,21 @@ async def erro_validacao(_request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={"detail": "Dados inválidos. Confira os campos destacados.", "erros": erros},
+    )
+
+
+@app.exception_handler(IntegrityError)
+async def erro_integridade(request: Request, exc: IntegrityError):
+    """O banco recusou a gravação (ex.: dois cadastros com o mesmo e-mail chegando
+    ao mesmo tempo, depois de as duas requisições passarem pela checagem).
+    Responde 409 com mensagem clara, sem expor nome de tabela, coluna ou SQL."""
+    logger.warning("Violação de integridade em %s %s: %s", request.method, request.url.path, exc.orig)
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={
+            "detail": "Não foi possível salvar porque este registro já existe ou conflita com outro. "
+            "Atualize a página e tente de novo."
+        },
     )
 
 

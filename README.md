@@ -75,12 +75,12 @@ Acesse http://localhost:5173.
 
 ## Testes
 
-São 57 testes automatizados, em duas pastas:
+São 65 testes automatizados, em duas pastas:
 
 | Tipo | Pasta | O que testa |
 |---|---|---|
-| Unitários (24) | `backend/tests/unit` | Regras isoladas, sem banco nem API: grade de horários livres, hash e força da senha, senha temporária, limite de tentativas, validação de entradas e intervalo do dashboard |
-| Integração (33) | `backend/tests/integracao` | A API inteira com banco em memória: cadastro e login, 401/403, logout, conflito de horário, regra das 2 horas, estoque, PDV, dashboard, recuperação de senha, XSS e SQL injection |
+| Unitários (31) | `backend/tests/unit` | Regras isoladas, sem banco nem API: grade de horários livres, serviço de estoque, hash e força da senha, senha temporária, limite de tentativas, validação de entradas e intervalo do dashboard |
+| Integração (34) | `backend/tests/integracao` | A API inteira com banco em memória: cadastro e login, 401/403, logout, conflito de horário, regra das 2 horas, estoque, PDV, dashboard, recuperação de senha, registro duplicado simultâneo (409), XSS e SQL injection |
 
 ```bash
 cd backend
@@ -89,6 +89,12 @@ cd backend
 
 ```bash
 .venv\Scripts\python -m pytest tests/integracao -q
+```
+
+Cobertura de código (atualmente **92%**; o CI exige no mínimo 85%):
+
+```bash
+.venv\Scripts\python -m pytest --cov --cov-report=term
 ```
 
 ## Integração Contínua (CI)

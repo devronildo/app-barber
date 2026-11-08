@@ -12,7 +12,7 @@ import {
   TituloPagina,
   useTituloDocumento,
 } from "../components";
-import { dataPorExtenso, hora, moeda } from "../formatos";
+import { dataPorExtenso, hora, moeda, valorEmReais } from "../formatos";
 
 const TIPOS = { consumo: "Consumo interno", venda: "Para venda" };
 
@@ -69,7 +69,7 @@ function ModalProduto({ aberto, produto, tipoInicial, aoFechar, aoSalvar }) {
     const loc = {};
     if ((dados.nome ?? "").trim().length < 2) loc.nome = "Informe o nome do produto.";
     if ((dados.categoria ?? "").trim().length < 2) loc.categoria = "Informe a categoria, por exemplo Barba.";
-    if (dados.tipo === "venda" && !(Number(String(dados.preco_venda).replace(",", ".")) > 0)) {
+    if (dados.tipo === "venda" && !valorEmReais(dados.preco_venda)) {
       loc.preco_venda = "Informe o preço de venda, por exemplo 45,00.";
     }
     if (!editando && !(Number(dados.quantidade) >= 0)) loc.quantidade = "Informe 0 ou mais.";
@@ -82,7 +82,7 @@ function ModalProduto({ aberto, produto, tipoInicial, aoFechar, aoSalvar }) {
       nome: dados.nome.trim(),
       categoria: dados.categoria.trim(),
       tipo: dados.tipo,
-      preco_venda: dados.tipo === "venda" ? String(dados.preco_venda).replace(",", ".") : null,
+      preco_venda: dados.tipo === "venda" ? valorEmReais(dados.preco_venda).toFixed(2) : null,
       quantidade_minima: Number(dados.quantidade_minima),
       ...(editando ? {} : { quantidade: Number(dados.quantidade) }),
     };

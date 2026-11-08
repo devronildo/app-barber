@@ -27,6 +27,15 @@ export function hojeISO(somaDias = 0) {
   return `${d.getFullYear()}-${mes}-${dia}`;
 }
 
+/** Converte o que a pessoa digitou em reais para número.
+ *  Aceita "1.234,50", "45,00", "45.5" e "45". Valor vazio, negativo ou inválido vira 0. */
+export function valorEmReais(texto) {
+  const t = String(texto ?? "").trim().replace(/^R\$\s*/i, "");
+  const normalizado = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
+  const n = Number(normalizado);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+}
+
 export function somarDias(iso, dias) {
   const [a, m, d] = iso.split("-").map(Number);
   const nova = new Date(a, m - 1, d + dias);
