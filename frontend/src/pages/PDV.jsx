@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import api, { mensagemErro } from "../api";
 import { useAuth } from "../auth";
 import { Alerta, Campo, Carregando, CartaoNumero, Icone, Modal, TituloPagina, useTituloDocumento } from "../components";
-import { hora, moeda } from "../formatos";
+import { hora, moeda, valorEmReais } from "../formatos";
 
 const FORMAS = [
   { valor: "pix", texto: "Pix" },
@@ -12,13 +12,6 @@ const FORMAS = [
 ];
 const NOME_FORMA = Object.fromEntries(FORMAS.map((f) => [f.valor, f.texto]));
 
-/** Aceita "1.234,50", "45,00" ou "45.5". */
-function paraNumero(texto) {
-  const t = String(texto ?? "").trim();
-  const normalizado = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
-  const n = Number(normalizado);
-  return Number.isFinite(n) && n > 0 ? n : 0;
-}
 
 function Recibo({ venda }) {
   return (
@@ -174,9 +167,9 @@ export default function PDV() {
 
   const noCarrinho = (id) => carrinho.find((i) => i.produto.id === id)?.quantidade ?? 0;
   const subtotal = carrinho.reduce((s, i) => s + i.quantidade * Number(i.produto.preco_venda), 0);
-  const valorDesconto = Math.min(paraNumero(desconto), subtotal);
+  const valorDesconto = Math.min(valorEmReais(desconto), subtotal);
   const total = subtotal - valorDesconto;
-  const valorRecebido = paraNumero(recebido);
+  const valorRecebido = valorEmReais(recebido);
   const troco = forma === "dinheiro" && recebido ? valorRecebido - total : null;
   const itensTotal = carrinho.reduce((s, i) => s + i.quantidade, 0);
 
@@ -221,7 +214,7 @@ export default function PDV() {
   async function finalizar() {
     setErro("");
     if (!carrinho.length) return setErro("Adicione pelo menos um produto à venda.");
-    if (paraNumero(desconto) > subtotal) return setErro("O desconto não pode ser maior que o valor da venda.");
+    if (valorEmReais(desconto) > subtotal) return setErro("O desconto não pode ser maior que o valor da venda.");
     if (forma === "dinheiro" && recebido && valorRecebido < total) return setErro("O valor recebido é menor que o total.");
     setEnviando(true);
     try {
