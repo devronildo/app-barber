@@ -23,6 +23,17 @@ def listar(db: Session = Depends(get_db)):
     ).all()
 
 
+@router.get("/eu", response_model=BarbeiroOut)
+def meu_cadastro(db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_perfil("barbeiro"))):
+    """O barbeiro logado consulta o próprio cadastro (usado na agenda dele)."""
+    barbeiro = db.scalar(
+        select(Barbeiro).where(Barbeiro.usuario_id == usuario.id).options(selectinload(Barbeiro.horarios))
+    )
+    if barbeiro is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Barbeiro não encontrado.")
+    return barbeiro
+
+
 @router.post("", response_model=BarbeiroOut, status_code=status.HTTP_201_CREATED)
 def criar(dados: BarbeiroCriar, db: Session = Depends(get_db), _admin=Depends(exigir_perfil("admin"))):
     if db.scalar(select(Usuario.id).where(Usuario.email == dados.email)):
