@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..database import get_db
 from ..deps import exigir_perfil
-from ..models import ItemVenda, MovimentacaoEstoque, Produto, Usuario, Venda
+from ..models import ItemVenda, Produto, Usuario, Venda
 from ..schemas import ProdutoOut, VendaCriar, VendaOut, VendaResultado, VendasDoDia
+from ..servicos.estoque import EstoqueInsuficiente, movimentar, verificar_saida
 from ..utils import agora
 
 router = APIRouter(prefix="/vendas", tags=["PDV"])
@@ -50,11 +51,10 @@ def vender(dados: VendaCriar, db: Session = Depends(get_db), usuario: Usuario = 
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, f"{produto.nome} é de uso interno e não pode ser vendido."
             )
-        if item.quantidade > produto.quantidade:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                f"Estoque insuficiente de {produto.nome}. Disponível: {produto.quantidade} unidade(s).",
-            )
+        try:
+            verificar_saida(produto, item.quantidade)
+        except EstoqueInsuficiente as erro:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(erro))
         valor = (produto.preco_venda * item.quantidade).quantize(CENTAVO)
         subtotal += valor
         itens.append(
@@ -97,17 +97,7 @@ def vender(dados: VendaCriar, db: Session = Depends(get_db), usuario: Usuario = 
     alertas = []
     for item in itens:
         produto = produtos[item.produto_id]
-        produto.quantidade -= item.quantidade
-        db.add(
-            MovimentacaoEstoque(
-                produto_id=produto.id,
-                usuario_id=usuario.id,
-                tipo="saida",
-                quantidade=item.quantidade,
-                saldo_apos=produto.quantidade,
-                observacao=f"Venda #{venda.id}",
-            )
-        )
+        movimentar(db, produto, "saida", item.quantidade, usuario.id, f"Venda #{venda.id}")
         if produto.estoque_baixo:
             alertas.append(f"Estoque baixo: {produto.nome} ficou com {produto.quantidade} unidade(s).")
 
@@ -156,17 +146,7 @@ def cancelar(venda_id: int, db: Session = Depends(get_db), admin: Usuario = Depe
     # Devolve os produtos ao estoque.
     for item in venda.itens:
         produto = db.scalar(select(Produto).where(Produto.id == item.produto_id).with_for_update())
-        produto.quantidade += item.quantidade
-        db.add(
-            MovimentacaoEstoque(
-                produto_id=produto.id,
-                usuario_id=admin.id,
-                tipo="entrada",
-                quantidade=item.quantidade,
-                saldo_apos=produto.quantidade,
-                observacao=f"Cancelamento da venda #{venda.id}",
-            )
-        )
+        movimentar(db, produto, "entrada", item.quantidade, admin.id, f"Cancelamento da venda #{venda.id}")
     venda.status = "cancelada"
     db.commit()
     return db.scalar(_consulta().where(Venda.id == venda.id))

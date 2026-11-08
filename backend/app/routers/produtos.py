@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import exigir_perfil
 from ..models import MovimentacaoEstoque, Produto, Usuario
+from ..servicos.estoque import EstoqueInsuficiente, mensagem_alerta, movimentar as aplicar_movimentacao
 from ..schemas import (
     MovimentacaoCriar,
     MovimentacaoOut,
@@ -19,15 +20,6 @@ from ..schemas import (
 router = APIRouter(prefix="/produtos", tags=["Estoque"])
 
 somente_admin = exigir_perfil("admin")
-
-
-def _mensagem_alerta(produto: Produto) -> str | None:
-    if not produto.estoque_baixo:
-        return None
-    return (
-        f"Estoque baixo: {produto.nome} está com {produto.quantidade} "
-        f"unidade(s) (mínimo {produto.quantidade_minima})."
-    )
 
 
 @router.get("", response_model=list[ProdutoOut])
@@ -62,20 +54,11 @@ def alertas(db: Session = Depends(get_db), _admin: Usuario = Depends(somente_adm
 def criar(dados: ProdutoCriar, db: Session = Depends(get_db), admin: Usuario = Depends(somente_admin)):
     if db.scalar(select(Produto.id).where(Produto.nome == dados.nome)):
         raise HTTPException(status.HTTP_409_CONFLICT, "Já existe um produto com esse nome.")
-    produto = Produto(**dados.model_dump())
+    produto = Produto(**dados.model_dump(exclude={"quantidade"}), quantidade=0)
     db.add(produto)
     db.flush()
-    if produto.quantidade > 0:
-        db.add(
-            MovimentacaoEstoque(
-                produto_id=produto.id,
-                usuario_id=admin.id,
-                tipo="entrada",
-                quantidade=produto.quantidade,
-                saldo_apos=produto.quantidade,
-                observacao="Quantidade inicial",
-            )
-        )
+    if dados.quantidade > 0:
+        aplicar_movimentacao(db, produto, "entrada", dados.quantidade, admin.id, "Quantidade inicial")
     db.commit()
     db.refresh(produto)
     return produto
@@ -112,28 +95,22 @@ def movimentar(
     produto = db.scalar(select(Produto).where(Produto.id == produto_id).with_for_update())
     if produto is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Produto não encontrado.")
-    if dados.tipo == "saida" and dados.quantidade > produto.quantidade:
+    try:
+        movimentacao = aplicar_movimentacao(
+            db, produto, dados.tipo, dados.quantidade, admin.id, dados.observacao
+        )
+    except EstoqueInsuficiente:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             f"Saída maior que o estoque. Disponível: {produto.quantidade} unidade(s).",
         )
-    produto.quantidade += dados.quantidade if dados.tipo == "entrada" else -dados.quantidade
-    movimentacao = MovimentacaoEstoque(
-        produto_id=produto.id,
-        usuario_id=admin.id,
-        tipo=dados.tipo,
-        quantidade=dados.quantidade,
-        saldo_apos=produto.quantidade,
-        observacao=dados.observacao or None,
-    )
-    db.add(movimentacao)
     db.commit()
     db.refresh(produto)
     db.refresh(movimentacao)
     return MovimentacaoResultado(
         movimentacao=MovimentacaoOut.model_validate(movimentacao),
         produto=ProdutoOut.model_validate(produto),
-        alerta=_mensagem_alerta(produto),
+        alerta=mensagem_alerta(produto),
     )
 
 
