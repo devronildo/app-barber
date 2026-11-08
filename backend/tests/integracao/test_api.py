@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.models import Agendamento, Usuario
 from app.utils import agora
 
-from .conftest import SENHA, login
+from ..conftest import SENHA, login
 
 
 def _amanha(hora: int = 10) -> str:
