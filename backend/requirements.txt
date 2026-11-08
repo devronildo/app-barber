@@ -1,0 +1,10 @@
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.1.8
+alembic==1.20.1
+PyJWT==2.15.1
+bcrypt==5.0.0
+pydantic[email]==2.14.3
+python-dotenv==1.2.4
+tzdata==2026.6
+psycopg[binary]==3.3.8

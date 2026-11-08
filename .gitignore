@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Banco local e segredos
+*.db
+.env
+
+# Node
+node_modules/
+dist/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.env.local
+
+# Configuração local do editor
+.claude/

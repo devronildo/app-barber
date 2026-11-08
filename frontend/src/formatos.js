@@ -1,0 +1,45 @@
+const formatoData = new Intl.DateTimeFormat("pt-BR", {
+  weekday: "long",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+const formatoHora = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const formatoMoeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+/** "2026-12-15T11:00:00" vem na hora local da barbearia, sem fuso. */
+export function paraData(iso) {
+  const [data, hora = "00:00"] = iso.split("T");
+  const [a, m, d] = data.split("-").map(Number);
+  const [h, min] = hora.split(":").map(Number);
+  return new Date(a, m - 1, d, h, min);
+}
+
+export const dataPorExtenso = (iso) => formatoData.format(paraData(iso));
+export const hora = (iso) => formatoHora.format(paraData(iso));
+export const moeda = (valor) => formatoMoeda.format(Number(valor));
+
+export function hojeISO(somaDias = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + somaDias);
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
+export function somarDias(iso, dias) {
+  const [a, m, d] = iso.split("-").map(Number);
+  const nova = new Date(a, m - 1, d + dias);
+  return `${nova.getFullYear()}-${String(nova.getMonth() + 1).padStart(2, "0")}-${String(nova.getDate()).padStart(2, "0")}`;
+}
+
+export const DIAS_SEMANA = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+
+export function iniciais(nome) {
+  return nome
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join("");
+}
