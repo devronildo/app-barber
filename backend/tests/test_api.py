@@ -9,10 +9,11 @@ from app.utils import agora
 from .conftest import SENHA, login
 
 
-def _proximo_horario(horas: int) -> str:
-    alvo = agora() + timedelta(hours=horas)
-    alvo = alvo.replace(minute=0 if alvo.minute < 30 else 30, second=0) + timedelta(minutes=30)
-    return alvo.strftime("%Y-%m-%dT%H:%M")
+def _amanha(hora: int = 10) -> str:
+    """Sempre amanhã em hora cheia: não depende do horário em que o teste roda
+    (antes, perto da meia-noite o horário caía no dia seguinte e o teste falhava)."""
+    dia = agora().date() + timedelta(days=1)
+    return f"{dia.isoformat()}T{hora:02d}:00"
 
 
 # ---------- RF01 / RNF01 ----------
@@ -104,7 +105,7 @@ def test_admin_cadastra_barbeiro(client, dados_base):
 def test_agendamento_sem_conflito(client, dados_base):
     h_a, _ = login(client, "a@example.com")
     h_b, _ = login(client, "b@example.com")
-    inicio = _proximo_horario(5)
+    inicio = _amanha()
     corpo = {**dados_base, "inicio": inicio}
     assert client.post("/agendamentos", headers=h_a, json=corpo).status_code == 201
     assert client.post("/agendamentos", headers=h_b, json=corpo).status_code == 409
@@ -118,7 +119,7 @@ def test_agendamento_sem_conflito(client, dados_base):
 
 def test_cancelamento_libera_horario(client, dados_base):
     h_a, _ = login(client, "a@example.com")
-    inicio = _proximo_horario(5)
+    inicio = _amanha()
     ag = client.post("/agendamentos", headers=h_a, json={**dados_base, "inicio": inicio}).json()
     r = client.post(f"/agendamentos/{ag['id']}/cancelar", headers=h_a)
     assert r.status_code == 200 and r.json()["status"] == "cancelado"
@@ -128,11 +129,17 @@ def test_cancelamento_libera_horario(client, dados_base):
 
 def test_cancelamento_com_menos_de_2_horas_recusado(client, dados_base, db):
     h_a, _ = login(client, "a@example.com")
-    inicio = _proximo_horario(1)
-    r = client.post("/agendamentos", headers=h_a, json={**dados_base, "inicio": inicio})
-    if r.status_code != 201:  # perto da meia-noite o horário pode cair fora do dia
-        return
-    r = client.post(f"/agendamentos/{r.json()['id']}/cancelar", headers=h_a)
+    # Grava direto no banco um horário daqui a 1 hora (pela API ele poderia cair
+    # fora do expediente perto da meia-noite).
+    cliente = db.scalar(select(Usuario).where(Usuario.email == "a@example.com"))
+    inicio = agora() + timedelta(hours=1)
+    ag = Agendamento(
+        cliente_id=cliente.id, barbeiro_id=dados_base["barbeiro_id"], servico_id=dados_base["servico_id"],
+        inicio=inicio, fim=inicio + timedelta(hours=1),
+    )
+    db.add(ag)
+    db.commit()
+    r = client.post(f"/agendamentos/{ag.id}/cancelar", headers=h_a)
     assert r.status_code == 400
     assert "2 horas" in r.json()["detail"]
 
@@ -140,14 +147,14 @@ def test_cancelamento_com_menos_de_2_horas_recusado(client, dados_base, db):
 def test_cliente_nao_ve_nem_cancela_agendamento_de_outro(client, dados_base):
     h_a, _ = login(client, "a@example.com")
     h_b, _ = login(client, "b@example.com")
-    ag = client.post("/agendamentos", headers=h_a, json={**dados_base, "inicio": _proximo_horario(5)}).json()
+    ag = client.post("/agendamentos", headers=h_a, json={**dados_base, "inicio": _amanha()}).json()
     assert client.post(f"/agendamentos/{ag['id']}/cancelar", headers=h_b).status_code == 404
     assert client.get("/agendamentos", headers=h_b).json() == []
 
 
 def test_barbeiro_ve_a_propria_agenda(client, dados_base):
     h_a, _ = login(client, "a@example.com")
-    client.post("/agendamentos", headers=h_a, json={**dados_base, "inicio": _proximo_horario(5)})
+    client.post("/agendamentos", headers=h_a, json={**dados_base, "inicio": _amanha()})
     h_barb, _ = login(client, "rafael@example.com")
     assert len(client.get("/agendamentos", headers=h_barb).json()) == 1
 
