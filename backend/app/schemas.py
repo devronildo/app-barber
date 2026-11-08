@@ -273,7 +273,43 @@ class AgendamentoOut(BaseModel):
     observacao: str | None
     servico: ServicoOut
     barbeiro: BarbeiroResumo
-    cliente: ClienteResumo
+    cliente: ClienteResumo | None
+    cliente_nome: str
+    cliente_telefone: str | None = None
+
+
+class AgendamentoBalcao(BaseModel):
+    """Agendamento feito pelo barbeiro (ou admin) para cliente sem conta."""
+
+    barbeiro_id: int | None = Field(default=None, gt=0)  # admin escolhe; barbeiro usa o próprio
+    servico_id: int = Field(gt=0)
+    inicio: datetime
+    cliente_nome: Nome
+    cliente_telefone: Telefone | None = None
+    observacao: Observacao = None
+
+    @field_validator("inicio")
+    @classmethod
+    def sem_fuso(cls, v: datetime) -> datetime:
+        return v.replace(tzinfo=None, second=0, microsecond=0)
+
+
+class Remarcar(BaseModel):
+    inicio: datetime
+
+    @field_validator("inicio")
+    @classmethod
+    def sem_fuso(cls, v: datetime) -> datetime:
+        return v.replace(tzinfo=None, second=0, microsecond=0)
+
+
+class FaturamentoBarbeiro(BaseModel):
+    hoje: Decimal
+    semana: Decimal
+    mes: Decimal
+    atendimentos_hoje: int
+    atendimentos_mes: int
+    restantes_hoje: int
 
 
 # ---------- Estoque ----------
@@ -316,6 +352,11 @@ class ProdutoOut(BaseModel):
     quantidade: int
     quantidade_minima: int
     estoque_baixo: bool
+
+
+class ExclusaoProduto(BaseModel):
+    acao: Literal["excluido", "arquivado"]
+    mensagem: str
 
 
 class MovimentacaoCriar(BaseModel):

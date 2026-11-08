@@ -95,7 +95,10 @@ class Agendamento(Base):
     __tablename__ = "agendamentos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    cliente_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    # Vazio quando o barbeiro marca para um cliente sem conta (telefone, WhatsApp, balcão).
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    cliente_nome_avulso: Mapped[str | None] = mapped_column(String(100))
+    cliente_telefone_avulso: Mapped[str | None] = mapped_column(String(20))
     barbeiro_id: Mapped[int] = mapped_column(ForeignKey("barbeiros.id"))
     servico_id: Mapped[int] = mapped_column(ForeignKey("servicos.id"))
     inicio: Mapped[datetime] = mapped_column(DateTime)
@@ -104,9 +107,17 @@ class Agendamento(Base):
     observacao: Mapped[str | None] = mapped_column(String(200))
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=agora)
 
-    cliente: Mapped[Usuario] = relationship()
+    cliente: Mapped[Usuario | None] = relationship()
     barbeiro: Mapped[Barbeiro] = relationship()
     servico: Mapped[Servico] = relationship()
+
+    @property
+    def cliente_nome(self) -> str:
+        return self.cliente.nome if self.cliente else (self.cliente_nome_avulso or "Cliente")
+
+    @property
+    def cliente_telefone(self) -> str | None:
+        return self.cliente.telefone if self.cliente else self.cliente_telefone_avulso
 
     __table_args__ = (
         # Índice usado na busca de horários livres (RNF03).
@@ -128,6 +139,8 @@ class Produto(Base):
     preco_venda: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     quantidade: Mapped[int] = mapped_column(Integer, default=0)
     quantidade_minima: Mapped[int] = mapped_column(Integer, default=0)
+    # False = arquivado: some das listas e do PDV, mas o histórico continua.
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=agora)
 
     __table_args__ = (

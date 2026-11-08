@@ -1,11 +1,12 @@
 """RF02: cadastro de barbeiros com dias e horários (somente administrador)."""
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..database import get_db
 from ..deps import exigir_perfil
-from ..models import Barbeiro, HorarioAtendimento, Usuario
+from ..models import Agendamento, Barbeiro, HorarioAtendimento, Usuario
+from ..utils import agora
 from ..schemas import BarbeiroCriar, BarbeiroHorarios, BarbeiroOut, SenhaTemporariaOut
 from ..security import gerar_hash, gerar_senha_temporaria
 
@@ -65,6 +66,33 @@ def gerar_senha_temporaria_barbeiro(
         senha_temporaria=temporaria,
         mensagem=f"Passe esta senha para {barbeiro.nome}. No primeiro acesso ele vai criar uma senha nova.",
     )
+
+
+@router.delete("/{barbeiro_id}", status_code=status.HTTP_204_NO_CONTENT)
+def desativar(barbeiro_id: int, db: Session = Depends(get_db), _admin=Depends(exigir_perfil("admin"))):
+    """Tira o barbeiro da equipe: ele some da tela de agendamento e perde o acesso,
+    mas os atendimentos antigos e o faturamento continuam no histórico."""
+    barbeiro = db.get(Barbeiro, barbeiro_id)
+    if barbeiro is None or not barbeiro.ativo:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Barbeiro não encontrado.")
+    futuros = db.scalar(
+        select(func.count(Agendamento.id)).where(
+            Agendamento.barbeiro_id == barbeiro.id,
+            Agendamento.status == "confirmado",
+            Agendamento.inicio >= agora(),
+        )
+    )
+    if futuros:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{barbeiro.nome} ainda tem {futuros} agendamento(s) marcado(s). "
+            "Remarque ou cancele esses horários antes de desativar.",
+        )
+    barbeiro.ativo = False
+    if barbeiro.usuario:
+        barbeiro.usuario.ativo = False
+        barbeiro.usuario.sessao_versao += 1  # encerra as sessões abertas
+    db.commit()
 
 
 @router.put("/{barbeiro_id}/horarios", response_model=BarbeiroOut)

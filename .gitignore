@@ -22,3 +22,7 @@ Thumbs.db
 
 # Configuração local do editor
 .claude/
+
+# Relatório de cobertura
+.coverage
+htmlcov/

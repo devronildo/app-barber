@@ -28,7 +28,9 @@ def _consulta():
 @router.get("/catalogo", response_model=list[ProdutoOut])
 def catalogo(db: Session = Depends(get_db), _u: Usuario = Depends(vendedor)):
     """Produtos do estoque de venda, para a tela do PDV."""
-    return db.scalars(select(Produto).where(Produto.tipo == "venda").order_by(Produto.nome)).all()
+    return db.scalars(
+        select(Produto).where(Produto.tipo == "venda", Produto.ativo.is_(True)).order_by(Produto.nome)
+    ).all()
 
 
 @router.post("", response_model=VendaResultado, status_code=status.HTTP_201_CREATED)
@@ -47,6 +49,8 @@ def vender(dados: VendaCriar, db: Session = Depends(get_db), usuario: Usuario = 
         produto = produtos.get(item.produto_id)
         if produto is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Produto não encontrado.")
+        if not produto.ativo:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{produto.nome} foi arquivado e não está mais à venda.")
         if produto.tipo != "venda" or produto.preco_venda is None:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, f"{produto.nome} é de uso interno e não pode ser vendido."

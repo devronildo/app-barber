@@ -1,17 +1,18 @@
 """RF05 (cadastro de produtos), RF06 (entradas e saídas) e RF07 (alerta de estoque baixo).
 Todas as rotas são exclusivas do administrador."""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import exigir_perfil
-from ..models import MovimentacaoEstoque, Produto, Usuario
+from ..models import ItemVenda, MovimentacaoEstoque, Produto, Usuario
 from ..servicos.estoque import EstoqueInsuficiente, mensagem_alerta, movimentar as aplicar_movimentacao
 from ..schemas import (
     MovimentacaoCriar,
     MovimentacaoOut,
     MovimentacaoResultado,
+    ExclusaoProduto,
     ProdutoAtualizar,
     ProdutoCriar,
     ProdutoOut,
@@ -30,7 +31,7 @@ def listar(
     db: Session = Depends(get_db),
     _admin: Usuario = Depends(somente_admin),
 ):
-    consulta = select(Produto).order_by(Produto.nome)
+    consulta = select(Produto).where(Produto.ativo.is_(True)).order_by(Produto.nome)
     if tipo:
         consulta = consulta.where(Produto.tipo == tipo)
     if baixo:
@@ -45,7 +46,7 @@ def listar(
 def alertas(db: Session = Depends(get_db), _admin: Usuario = Depends(somente_admin)):
     return db.scalars(
         select(Produto)
-        .where(Produto.quantidade <= Produto.quantidade_minima)
+        .where(Produto.ativo.is_(True), Produto.quantidade <= Produto.quantidade_minima)
         .order_by(Produto.quantidade)
     ).all()
 
@@ -81,6 +82,31 @@ def atualizar(
     db.commit()
     db.refresh(produto)
     return produto
+
+
+@router.delete("/{produto_id}", response_model=ExclusaoProduto)
+def excluir(produto_id: int, db: Session = Depends(get_db), _admin: Usuario = Depends(somente_admin)):
+    """Sem histórico, o produto é apagado. Com movimentações ou vendas, ele é
+    arquivado: some das listas e do PDV, mas o histórico e os relatórios continuam certos."""
+    produto = db.get(Produto, produto_id)
+    if produto is None or not produto.ativo:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Produto não encontrado.")
+    tem_historico = db.scalar(
+        select(
+            exists().where(MovimentacaoEstoque.produto_id == produto.id)
+            | exists().where(ItemVenda.produto_id == produto.id)
+        )
+    )
+    if tem_historico:
+        produto.ativo = False
+        db.commit()
+        return ExclusaoProduto(
+            acao="arquivado",
+            mensagem=f"“{produto.nome}” foi arquivado. Ele sai das listas e do PDV, mas o histórico foi mantido.",
+        )
+    db.delete(produto)
+    db.commit()
+    return ExclusaoProduto(acao="excluido", mensagem=f"“{produto.nome}” foi excluído.")
 
 
 @router.post("/{produto_id}/movimentacoes", response_model=MovimentacaoResultado, status_code=status.HTTP_201_CREATED)

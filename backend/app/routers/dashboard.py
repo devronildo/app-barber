@@ -128,7 +128,7 @@ def dashboard(
         )
     )
     estoque_baixo = db.scalar(
-        select(func.count(Produto.id)).where(Produto.quantidade <= Produto.quantidade_minima)
+        select(func.count(Produto.id)).where(Produto.ativo.is_(True), Produto.quantidade <= Produto.quantidade_minima)
     )
 
     n_atend = len(atendimentos)
