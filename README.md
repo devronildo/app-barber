@@ -91,6 +91,12 @@ cd backend
 .venv\Scripts\python -m pytest tests/integracao -q
 ```
 
+Cobertura de código (atualmente **92%**; o CI exige no mínimo 85%):
+
+```bash
+.venv\Scripts\python -m pytest --cov --cov-report=term
+```
+
 ## Integração Contínua (CI)
 
 O arquivo [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda no GitHub Actions a cada envio para a `main` e em todo Pull Request:

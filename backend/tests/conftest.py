@@ -42,6 +42,7 @@ def db():
     yield sessao
     sessao.close()
     app.dependency_overrides.clear()
+    engine.dispose()  # fecha a conexão do banco em memória ao fim de cada teste
 
 
 @pytest.fixture()
