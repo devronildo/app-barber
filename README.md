@@ -32,6 +32,7 @@ Sistema web em que o cliente cria a conta e agenda um horário com um dos barbei
 | Extra: PDV | `GET /vendas/catalogo`, `POST /vendas`, `GET /vendas`, `POST /vendas/{id}/cancelar` · tela PDV. Cada venda baixa o estoque e fica no histórico do produto; o cancelamento devolve os itens |
 | Extra: Dashboard | `GET /dashboard?periodo=hoje\|7d\|mes\|30d` · faturamento de serviços realizados + vendas, gráfico por dia, rankings e formas de pagamento |
 | RNF01 Autenticação | bcrypt (custo 12), JWT de 15 min + renovação de 1 dia, logout com lista de bloqueio, bloqueio após 5 senhas erradas |
+| Ajustes da validação | Barbeiro marca cliente do balcão (`POST /agendamentos/balcao`), remarca (`POST /agendamentos/{id}/remarcar`), cancela e vê o próprio faturamento (`GET /agendamentos/meu-faturamento`). Admin desativa barbeiro (`DELETE /barbeiros/{id}`) e exclui ou arquiva produto (`DELETE /produtos/{id}`) |
 | Recuperação de senha | “Esqueci minha senha” no login para todos: link por e-mail que vale 30 min e uma vez (`POST /auth/esqueci-senha`, `POST /auth/redefinir-senha`). O administrador também pode gerar senha temporária para barbeiro (`POST /barbeiros/{id}/senha-temporaria`), e a troca fica obrigatória no primeiro acesso. Trocar a senha encerra as outras sessões |
 | RNF02 OWASP | Validação no servidor (Pydantic), ORM com consultas parametrizadas, recusa de `<` e `>`, permissão por perfil em cada rota, erros genéricos, CSP |
 | RNF03 Desempenho | Índice em (barbeiro, início), compressão gzip, paginação |
@@ -75,12 +76,12 @@ Acesse http://localhost:5173.
 
 ## Testes
 
-São 65 testes automatizados, em duas pastas:
+São 83 testes automatizados, em duas pastas:
 
 | Tipo | Pasta | O que testa |
 |---|---|---|
 | Unitários (31) | `backend/tests/unit` | Regras isoladas, sem banco nem API: grade de horários livres, serviço de estoque, hash e força da senha, senha temporária, limite de tentativas, validação de entradas e intervalo do dashboard |
-| Integração (34) | `backend/tests/integracao` | A API inteira com banco em memória: cadastro e login, 401/403, logout, conflito de horário, regra das 2 horas, estoque, PDV, dashboard, recuperação de senha, registro duplicado simultâneo (409), XSS e SQL injection |
+| Integração (52) | `backend/tests/integracao` | A API inteira com banco em memória: cadastro e login, 401/403, logout, conflito de horário, regra das 2 horas, estoque, PDV, dashboard, recuperação de senha, agenda do barbeiro (balcão, remarcar, faturamento), desativar barbeiro, excluir produto, registro duplicado simultâneo (409), XSS e SQL injection |
 
 ```bash
 cd backend
