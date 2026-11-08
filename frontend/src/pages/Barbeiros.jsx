@@ -84,7 +84,7 @@ function LinhaDoTempo({ dias }) {
   );
 }
 
-function CartaoBarbeiro({ barbeiro, aoEditar, aoSenha }) {
+function CartaoBarbeiro({ barbeiro, aoEditar, aoSenha, aoDesativar }) {
   const dias = porDia(barbeiro.horarios);
   const diasTrabalho = dias.filter((d) => d.length).length;
   return (
@@ -103,6 +103,9 @@ function CartaoBarbeiro({ barbeiro, aoEditar, aoSenha }) {
           </button>
           <button type="button" className="botao-icone" onClick={() => aoSenha(barbeiro)} aria-label={`Gerar senha temporária para ${barbeiro.nome}`} title="Esqueceu a senha? Gerar senha temporária">
             <Icone nome="chave" tamanho={18} />
+          </button>
+          <button type="button" className="botao-icone botao-icone-perigo" onClick={() => aoDesativar(barbeiro)} aria-label={`Desativar ${barbeiro.nome}`} title="Desativar barbeiro (saiu da equipe)">
+            <Icone nome="lixeira" tamanho={18} />
           </button>
         </div>
       </div>
@@ -373,6 +376,56 @@ function ModalSenha({ barbeiro, aoFechar }) {
   );
 }
 
+/* ---------------- Desativar ---------------- */
+
+function ModalDesativar({ barbeiro, aoFechar, aoDesativar }) {
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => setErro(""), [barbeiro]);
+
+  async function confirmar() {
+    setEnviando(true);
+    setErro("");
+    try {
+      await api.delete(`/barbeiros/${barbeiro.id}`);
+      aoDesativar(barbeiro);
+    } catch (e) {
+      setErro(mensagemErro(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Modal
+      aberto={Boolean(barbeiro)}
+      aoFechar={aoFechar}
+      largura="pequena"
+      titulo={barbeiro ? `Desativar ${barbeiro.nome}?` : ""}
+      subtitulo="Use quando o barbeiro sair da equipe."
+      rodape={
+        <>
+          <button type="button" className="botao botao-texto" onClick={aoFechar}>Voltar</button>
+          <button type="button" className="botao botao-perigo" onClick={confirmar} disabled={enviando}>
+            {enviando ? "Desativando..." : "Sim, desativar"}
+          </button>
+        </>
+      }
+    >
+      {erro && <Alerta tipo="erro" titulo={erro} />}
+      {barbeiro && (
+        <ul className="lista-passos">
+          <li>{barbeiro.nome} deixa de aparecer na tela de agendamento dos clientes.</li>
+          <li>O acesso dele ao sistema é bloqueado.</li>
+          <li>Os atendimentos já feitos continuam no histórico e no faturamento.</li>
+          <li>Se ainda houver horários marcados com ele, remarque ou cancele antes na Agenda.</li>
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
 /* ---------------- Página ---------------- */
 
 export default function Barbeiros() {
@@ -382,6 +435,7 @@ export default function Barbeiros() {
   const [editando, setEditando] = useState(null);
   const [novo, setNovo] = useState(false);
   const [senhaDe, setSenhaDe] = useState(null);
+  const [desativando, setDesativando] = useState(null);
 
   useEffect(() => {
     api.get("/barbeiros").then((r) => setBarbeiros(r.data)).catch((e) => {
@@ -417,7 +471,7 @@ export default function Barbeiros() {
       ) : (
         <ul className="lista-barbeiros-cartoes">
           {barbeiros.map((b) => (
-            <CartaoBarbeiro key={b.id} barbeiro={b} aoEditar={setEditando} aoSenha={setSenhaDe} />
+            <CartaoBarbeiro key={b.id} barbeiro={b} aoEditar={setEditando} aoSenha={setSenhaDe} aoDesativar={setDesativando} />
           ))}
         </ul>
       )}
@@ -432,6 +486,15 @@ export default function Barbeiros() {
         aoSalvar={aoSalvar}
       />
       <ModalSenha barbeiro={senhaDe} aoFechar={() => setSenhaDe(null)} />
+      <ModalDesativar
+        barbeiro={desativando}
+        aoFechar={() => setDesativando(null)}
+        aoDesativar={(b) => {
+          setBarbeiros((l) => l.filter((x) => x.id !== b.id));
+          setDesativando(null);
+          setMensagem({ tipo: "sucesso", texto: `${b.nome} foi desativado e não aparece mais para agendamento.` });
+        }}
+      />
     </section>
   );
 }

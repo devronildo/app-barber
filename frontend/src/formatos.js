@@ -36,6 +36,14 @@ export function valorEmReais(texto) {
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
 }
 
+/** "11955551234" vira "(11) 95555-1234". */
+export function telefone(digitos) {
+  const d = String(digitos ?? "").replace(/\D/g, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return digitos ?? "";
+}
+
 export function somarDias(iso, dias) {
   const [a, m, d] = iso.split("-").map(Number);
   const nova = new Date(a, m - 1, d + dias);

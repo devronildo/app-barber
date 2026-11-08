@@ -289,6 +289,8 @@ export default function Estoque() {
   const [editando, setEditando] = useState(null);
   const [novoAberto, setNovoAberto] = useState(false);
   const [mensagem, setMensagem] = useState(null);
+  const [excluindo, setExcluindo] = useState(null);
+  const [enviandoExclusao, setEnviandoExclusao] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
@@ -336,6 +338,20 @@ export default function Estoque() {
     setNovoAberto(false);
     setEditando(null);
     setMensagem({ tipo: "sucesso", texto: editou ? `“${produto.nome}” atualizado.` : `“${produto.nome}” cadastrado em ${TIPOS[produto.tipo]}.` });
+  }
+
+  async function confirmarExclusao() {
+    setEnviandoExclusao(true);
+    try {
+      const { data } = await api.delete(`/produtos/${excluindo.id}`);
+      setProdutos((l) => l.filter((p) => p.id !== excluindo.id));
+      setMensagem({ tipo: "sucesso", texto: data.mensagem });
+    } catch (e) {
+      setMensagem({ tipo: "erro", texto: mensagemErro(e) });
+    } finally {
+      setExcluindo(null);
+      setEnviandoExclusao(false);
+    }
   }
 
   const abas = [
@@ -432,6 +448,9 @@ export default function Estoque() {
                       <button type="button" className="botao-icone" onClick={() => setEditando(p)} aria-label={`Editar ${p.nome}`}>
                         <Icone nome="lapis" tamanho={18} />
                       </button>
+                      <button type="button" className="botao-icone botao-icone-perigo" onClick={() => setExcluindo(p)} aria-label={`Excluir ${p.nome}`} title="Excluir produto">
+                        <Icone nome="lixeira" tamanho={18} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -445,6 +464,27 @@ export default function Estoque() {
           </table>
         </div>
       )}
+
+      <Modal
+        aberto={Boolean(excluindo)}
+        aoFechar={() => setExcluindo(null)}
+        largura="pequena"
+        titulo={excluindo ? `Excluir “${excluindo.nome}”?` : ""}
+        subtitulo="Use quando o produto não for mais usado nem vendido."
+        rodape={
+          <>
+            <button type="button" className="botao botao-texto" onClick={() => setExcluindo(null)}>Voltar</button>
+            <button type="button" className="botao botao-perigo" onClick={confirmarExclusao} disabled={enviandoExclusao}>
+              {enviandoExclusao ? "Excluindo..." : "Sim, excluir"}
+            </button>
+          </>
+        }
+      >
+        <ul className="lista-passos">
+          <li>Se o produto nunca teve entradas, saídas ou vendas, ele é apagado.</li>
+          <li>Se já tem histórico, ele é <strong>arquivado</strong>: sai das listas e do PDV, mas as vendas e movimentações antigas continuam nos relatórios.</li>
+        </ul>
+      </Modal>
 
       <ModalMovimentar produto={movimentando} aoFechar={() => setMovimentando(null)} aoSalvar={aoMovimentar} />
       <ModalProduto
