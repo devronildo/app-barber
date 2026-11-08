@@ -1,5 +1,7 @@
 # Mooca Barber Club – MVP
 
+[![CI](https://github.com/devronildo/app-barber/actions/workflows/ci.yml/badge.svg)](https://github.com/devronildo/app-barber/actions/workflows/ci.yml)
+
 Sistema web em que o cliente cria a conta e agenda um horário com um dos barbeiros. O sistema também controla dois estoques (consumo interno e produtos para venda), tem um PDV para vender os produtos e um dashboard de faturamento.
 
 - **Backend:** Python 3.11+ · FastAPI · SQLAlchemy · Alembic · PyJWT · bcrypt
@@ -73,12 +75,46 @@ Acesse http://localhost:5173.
 
 ## Testes
 
+São 57 testes automatizados, em duas pastas:
+
+| Tipo | Pasta | O que testa |
+|---|---|---|
+| Unitários (24) | `backend/tests/unit` | Regras isoladas, sem banco nem API: grade de horários livres, hash e força da senha, senha temporária, limite de tentativas, validação de entradas e intervalo do dashboard |
+| Integração (33) | `backend/tests/integracao` | A API inteira com banco em memória: cadastro e login, 401/403, logout, conflito de horário, regra das 2 horas, estoque, PDV, dashboard, recuperação de senha, XSS e SQL injection |
+
 ```bash
 cd backend
-.venv\Scripts\python -m pytest -q
+.venv\Scripts\python -m pytest tests/unit -q
 ```
 
-São 33 testes que cobrem os critérios de aceitação: senha salva só como hash, login inválido com mensagem genérica, bloqueio após 5 tentativas, 401 sem token, 403 para perfil sem permissão, logout que encerra a sessão, conflito de horário (409), cancelamento que libera o horário, regra das 2 horas, saída maior que o estoque, alerta de estoque baixo e tentativas de XSS e SQL injection, além de vendas no PDV (baixa de estoque, troco, cancelamento) e do dashboard.
+```bash
+.venv\Scripts\python -m pytest tests/integracao -q
+```
+
+## Integração Contínua (CI)
+
+O arquivo [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda no GitHub Actions a cada envio para a `main` e em todo Pull Request:
+
+1. Testes unitários e de integração do backend.
+2. Migrações do banco aplicadas do zero.
+3. Verificação de vulnerabilidades nas dependências (`pip-audit` e `npm audit`).
+4. Build de produção do frontend.
+
+Um Pull Request só deve ser aceito com o CI verde.
+
+## Padrão de commits
+
+As mensagens seguem o padrão semântico:
+
+| Prefixo | Uso |
+|---|---|
+| `feat:` | nova funcionalidade |
+| `fix:` | correção de erro |
+| `test:` | testes |
+| `docs:` | documentação |
+| `ci:` | integração contínua |
+| `chore:` | manutenção e configuração |
+| `style:` / `refactor:` | visual ou reorganização de código, sem mudar o comportamento |
 
 Para verificar dependências com falhas conhecidas:
 
