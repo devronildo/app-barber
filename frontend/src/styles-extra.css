@@ -684,3 +684,16 @@
   .grade-paineis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .lista-barbeiros-cartoes { grid-template-columns: repeat(auto-fill, minmax(30rem, 1fr)); }
 }
+
+/* ---------- Ajustes da validação ---------- */
+.botao-icone-perigo:hover { color: var(--erro); border-color: var(--erro); }
+.linha-agenda-acoes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--borda-suave);
+}
+.rotulo-grupo { font-weight: 600; margin: 0.25rem 0 0.5rem; }
+.modal .grade-horarios .horario { min-width: 5rem; }
