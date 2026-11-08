@@ -1,0 +1,4 @@
+# Padroniza as quebras de linha (LF) no repositório, em qualquer sistema.
+* text=auto eol=lf
+*.jpg binary
+*.png binary
