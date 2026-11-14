@@ -148,20 +148,23 @@ SMTP_REMETENTE=seu-email@gmail.com
 
 Sem `SMTP_HOST`, o link vai para o log do servidor. Com `DEBUG=true`, ele também aparece na tela, para testar e apresentar. A resposta é sempre a mesma, exista ou não o e-mail, para não revelar quem tem conta. No banco fica só o hash do token.
 
-## Implantação (planos gratuitos)
+## Implantação (Render, plano gratuito)
 
-**Backend no Render (Web Service)**
-- Root directory: `backend`
-- Build: `pip install -r requirements.txt && alembic upgrade head`
-- Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Variáveis: `DEBUG=false`, `DATABASE_URL` (PostgreSQL do Render), `JWT_SECRET` (valor longo e aleatório), `CORS_ORIGINS` (URL do frontend na Vercel)
+O arquivo `render.yaml` descreve toda a infraestrutura: banco PostgreSQL, API e site. No painel do Render: **New > Blueprint**, escolha este repositório e preencha as variáveis pedidas:
 
-**Frontend na Vercel**
-- Root directory: `frontend` · Framework: Vite
-- Variável: `VITE_API_URL` com a URL do backend no Render
-- O `vercel.json` já configura as rotas do React e o cabeçalho Content-Security-Policy.
+| Serviço | Variável | Valor |
+|---|---|---|
+| mooca-barber-api | `CORS_ORIGINS` e `FRONTEND_URL` | endereço do site, ex.: `https://mooca-barber-club.onrender.com` |
+| mooca-barber-api | `SEED_SENHA_ADMIN` e `SEED_SENHA_PADRAO` | senhas das contas de teste (dados fictícios) |
+| mooca-barber-club | `VITE_API_URL` | endereço da API, ex.: `https://mooca-barber-api.onrender.com` |
 
-**Limites do plano gratuito:** o backend no Render entra em suspensão depois de um tempo sem uso, e o primeiro acesso demora mais. O banco gratuito tem pouco espaço e validade limitada.
+O `JWT_SECRET` é gerado pelo próprio Render e o `DATABASE_URL` vem do banco criado pelo blueprint. A cada push na `main`, o Render refaz o build: instala as dependências, aplica as migrações (`alembic upgrade head`) e, só se o banco estiver vazio, carrega os dados de demonstração.
+
+**Monitoramento:** o UptimeRobot consulta `GET /saude` da API e a página inicial do site a cada 5 minutos e avisa por e-mail quando algum deles fica fora do ar (status DOWN). O Render também usa `/saude` como health check antes de liberar cada nova versão.
+
+**Limites do plano gratuito:** a API entra em suspensão depois de 15 minutos sem acesso e o primeiro acesso seguinte demora mais. O banco gratuito tem pouco espaço e validade limitada.
+
+O `frontend/vercel.json` continua no projeto como alternativa para publicar o site na Vercel.
 
 ## Estrutura
 
