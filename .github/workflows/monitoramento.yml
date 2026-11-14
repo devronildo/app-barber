@@ -1,0 +1,55 @@
+name: Monitoramento
+
+# Verifica a cada 15 minutos se a API e o site em produção estão no ar.
+# Se algum não responder, a execução falha (status DOWN) e o GitHub avisa por e-mail.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitoramento
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      API_URL: https://mooca-barber-api.onrender.com/saude
+      SITE_URL: https://mooca-barber-club.onrender.com/
+    steps:
+      - name: Verificar API e site
+        run: |
+          # O plano gratuito do Render "dorme" sem acesso; o primeiro pedido pode levar até 1 minuto.
+          checar() {
+            nome="$1"; url="$2"; esperado="$3"
+            for tentativa in 1 2 3; do
+              inicio=$(date +%s%3N)
+              corpo=$(curl -s --max-time 90 -w '\n%{http_code}' "$url" || true)
+              codigo=$(echo "$corpo" | tail -n1)
+              tempo=$(( $(date +%s%3N) - inicio ))
+              if [ "$codigo" = "200" ] && echo "$corpo" | grep -q "$esperado"; then
+                echo "| $nome | UP | $codigo | ${tempo} ms |" >> "$GITHUB_STEP_SUMMARY"
+                echo "$nome: UP ($codigo, ${tempo} ms)"
+                return 0
+              fi
+              echo "$nome: tentativa $tentativa falhou (HTTP $codigo)"
+              sleep 20
+            done
+            echo "| $nome | DOWN | $codigo | - |" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=$nome fora do ar::$url respondeu HTTP $codigo"
+            return 1
+          }
+
+          echo "### Disponibilidade em $(TZ=America/Sao_Paulo date '+%d/%m/%Y %H:%M')" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Serviço | Status | HTTP | Tempo de resposta |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          falhas=0
+          checar "API (/saude)" "$API_URL" '"status":"ok"' || falhas=$((falhas + 1))
+          checar "Site" "$SITE_URL" 'Mooca Barber Club' || falhas=$((falhas + 1))
+          exit $falhas
