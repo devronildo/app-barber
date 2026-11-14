@@ -1,0 +1,69 @@
+# Publicação no Render (plano gratuito): banco PostgreSQL, API (FastAPI) e site (React).
+# No painel do Render: New > Blueprint > escolher este repositório.
+
+databases:
+  - name: mooca-barber-db
+    plan: free
+    databaseName: barbearia
+    user: barbearia
+
+services:
+  - type: web
+    name: mooca-barber-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    # Aplica as migrações e, só se o banco estiver vazio, carrega os dados fictícios de demonstração.
+    buildCommand: pip install -r requirements.txt && alembic upgrade head && python seed.py --forcar
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /saude
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DEBUG
+        value: "false"
+      - key: FUSO_HORARIO
+        value: America/Sao_Paulo
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mooca-barber-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Endereço do site (ex.: https://mooca-barber-club.onrender.com)
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      # Senhas das contas de teste criadas pelo seed (dados fictícios)
+      - key: SEED_SENHA_ADMIN
+        sync: false
+      - key: SEED_SENHA_PADRAO
+        sync: false
+
+  - type: web
+    name: mooca-barber-club
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Endereço da API (ex.: https://mooca-barber-api.onrender.com)
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.onrender.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
