@@ -208,6 +208,8 @@ main {
 .titulo-pagina { margin-bottom: 1.5rem; }
 .subtitulo, .texto-apoio { color: var(--texto-suave); }
 .texto-centro { text-align: center; margin-top: 1rem; }
+/* Links de navegação entre login, cadastro e recuperação: área de toque mínima de 44 px. */
+.texto-centro a { display: inline-flex; align-items: center; min-height: var(--toque); padding: 0 0.25rem; }
 
 /* ---------- Botões (mínimo 44x44 px) ---------- */
 .botao {
